@@ -15,6 +15,13 @@ export default defineConfig({
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: {
+      NOTION_KEY: "",
+      NOTION_DATABASE_ID: "",
+      NOTION_API_URL: "http://127.0.0.1:3000/api/notion-mock",
+      NOTION_MOCK_ENABLED: "true",
+      NOTION_TEST_OVERRIDE: "true",
+    },
   },
   projects: [
     {
