@@ -1,0 +1,20 @@
+You are working in C:\Users\admin\.openclaw\workspace\lynco\web (Next.js App Router + TS + Tailwind). Build the Lynco landing page implementation using the existing docs in ..\docs (landing-copy.md, flowmap.md).
+
+Requirements:
+- Implement a full landing page at route / with sections: Hero, How it works, Features, Flow Map, Lynco Lab, Security+Multitenancy, FAQ, CTA.
+- Theme: deep green + charcoal, modern B2B SaaS.
+- Add a simple Flow Map animation prototype (SVG/Canvas/CSS) demonstrating nodes/edges and a '딸깍' moment. Keep it lightweight.
+- Use Tailwind; keep components in app/(marketing)/ or components/ as appropriate.
+- Ensure good responsive layout, accessible headings, and clean typography.
+- Update metadata (title/description) and add basic Open Graph tags.
+- Do not add heavy dependencies.
+
+After implementation:
+1) Run npm run lint and npm run build and fix any issues.
+2) Summarize changes and files touched.
+
+Progress updates:
+- Print a progress bar in the terminal output at 0/10/20/.../100% with 1-2 bullets each milestone.
+
+When completely finished, run:
+openclaw gateway wake --text "Done: Lynco landing page implemented (sections, theme, Flow Map prototype), lint+build passing" --mode now

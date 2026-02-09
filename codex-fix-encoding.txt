@@ -1,0 +1,21 @@
+Task: Fix mojibake / broken Korean text in the Lynco landing page.
+
+Repo/workdir: C:\Users\admin\.openclaw\workspace\lynco\web
+
+Context:
+- Landing page is implemented in src/app/(marketing)/page.tsx with many Korean strings, but some are garbled (mojibake), e.g. "Sales �� Cash ��" and many broken Korean strings.
+- We need to convert those strings to correct Korean copy consistent with docs in ..\\docs\\landing-copy.md and ..\\docs\\flowmap.md.
+
+Requirements:
+1) Update src/app/(marketing)/page.tsx:
+   - Replace all garbled strings with correct Korean (and keep some English labels if desired, but Korean should be readable).
+   - Replace the Flow Map highlighted node label from "???" to "딸깍" (or another meaningful Korean label) and update the callout text accordingly.
+   - Ensure section copy is consistent, concise, confident (Deep Green/Charcoal B2B tone).
+2) If any other files have garbled Korean, fix them too.
+3) Keep file encoding as UTF-8.
+4) Run npm run lint and npm run build; fix any issues.
+5) Print progress milestones in stdout at [0%],[10%]...[100%] with 1-2 bullets each.
+6) Final output: short summary of files changed.
+
+When done, run this command to notify:
+openclaw gateway wake --text "Done: Fixed Korean text encoding (mojibake) on Lynco landing; lint+build passing" --mode now
