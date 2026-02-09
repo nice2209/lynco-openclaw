@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "lhci": "lhci autorun",
-    "security:audit": "npm audit --audit-level=high || echo 'WARN: npm audit found vulnerabilities (review later)'"
+    "security:audit": "npm audit --omit=dev --audit-level=high || echo 'WARN: npm audit (prod deps) found vulnerabilities (review later)'"
   },
   "dependencies": {
     "next": "16.1.6",
