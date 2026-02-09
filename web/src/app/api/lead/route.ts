@@ -7,10 +7,51 @@ type LeadPayload = {
   message?: string;
 };
 
-const NOTION_API_URL = "https://api.notion.com/v1/pages";
+const DEFAULT_NOTION_API_URL = "https://api.notion.com/v1/pages";
 const NOTION_VERSION = "2022-06-28";
 
 const emailRegex = /^\S+@\S+\.\S+$/;
+
+const trimString = (value: string | null | undefined) =>
+  typeof value === "string" ? value.trim() : "";
+
+const normalizeOptional = (value: string | null | undefined) => {
+  const trimmed = trimString(value);
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const sanitizeDatabaseId = (value: string) =>
+  value.replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+
+const resolveNotionApiUrl = () => {
+  const envUrl = trimString(process.env.NOTION_API_URL);
+  return envUrl || DEFAULT_NOTION_API_URL;
+};
+
+const resolveNotionConfig = (request: Request) => {
+  const allowTestOverrides = process.env.NOTION_TEST_OVERRIDE === "true";
+  const headerKey = allowTestOverrides
+    ? trimString(request.headers.get("x-notion-key"))
+    : "";
+  const headerDatabaseId = allowTestOverrides
+    ? trimString(request.headers.get("x-notion-database-id"))
+    : "";
+
+  const notionKey = trimString(process.env.NOTION_KEY) || headerKey;
+  const rawDatabaseId =
+    trimString(process.env.NOTION_DATABASE_ID) || headerDatabaseId;
+  const databaseId = sanitizeDatabaseId(rawDatabaseId);
+
+  if (!notionKey || !rawDatabaseId) {
+    return { ok: false, reason: "missing" } as const;
+  }
+
+  if (!databaseId || databaseId.length !== 32) {
+    return { ok: false, reason: "invalid" } as const;
+  }
+
+  return { ok: true, notionKey, databaseId } as const;
+};
 
 const buildBaseProperties = (data: {
   name: string;
@@ -56,27 +97,47 @@ const buildFullProperties = (data: {
   },
 });
 
-async function createNotionPage(
-  databaseId: string,
-  apiKey: string,
-  properties: Record<string, unknown>
-) {
-  const response = await fetch(NOTION_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "Notion-Version": NOTION_VERSION,
-    },
-    body: JSON.stringify({
-      parent: { database_id: databaseId },
-      properties,
-    }),
+async function createNotionPage(options: {
+  apiUrl: string;
+  databaseId: string;
+  apiKey: string;
+  properties: Record<string, unknown>;
+  requestId?: string;
+}) {
+  const { apiUrl, databaseId, apiKey, properties, requestId } = options;
+  const bodyJson = JSON.stringify({
+    parent: { database_id: databaseId },
+    properties,
   });
+  const bodyBytes = new TextEncoder().encode(bodyJson);
 
-  const payload = await response.json().catch(() => ({}));
+  const headers: HeadersInit = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json; charset=utf-8",
+    Accept: "application/json",
+    "Notion-Version": NOTION_VERSION,
+  };
 
-  return { response, payload } as const;
+  if (requestId) {
+    headers["X-Lead-Request-Id"] = requestId;
+  }
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers,
+      body: bodyBytes,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    return { response, payload } as const;
+  } catch {
+    return {
+      response: null,
+      payload: { message: "Notion request failed to send." },
+    } as const;
+  }
 }
 
 export async function POST(request: Request) {
@@ -91,10 +152,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const name = data.name?.trim() ?? "";
-  const company = data.company?.trim() ?? "";
-  const email = data.email?.trim() ?? "";
-  const message = data.message?.trim() || undefined;
+  const name = trimString(data.name);
+  const company = trimString(data.company);
+  const email = trimString(data.email);
+  const message = normalizeOptional(data.message);
 
   if (!name || !company || !email) {
     return NextResponse.json(
@@ -110,18 +171,25 @@ export async function POST(request: Request) {
     );
   }
 
-  const notionKey = process.env.NOTION_KEY?.trim();
-  const notionDatabaseId = process.env.NOTION_DATABASE_ID?.trim();
+  const notionConfig = resolveNotionConfig(request);
 
-  if (!notionKey || !notionDatabaseId) {
+  if (!notionConfig.ok) {
     return NextResponse.json(
       {
         error:
-          "Notion integration is not configured. Set NOTION_KEY and NOTION_DATABASE_ID.",
+          notionConfig.reason === "invalid"
+            ? "Notion integration is not configured. Check NOTION_DATABASE_ID."
+            : "Notion integration is not configured. Set NOTION_KEY and NOTION_DATABASE_ID.",
       },
       { status: 503 }
     );
   }
+
+  const notionApiUrl = resolveNotionApiUrl();
+  const requestId =
+    process.env.NOTION_MOCK_ENABLED === "true"
+      ? trimString(request.headers.get("x-lead-request-id"))
+      : "";
 
   const baseProperties = buildBaseProperties({ name, email, message });
   const fullProperties = buildFullProperties({
@@ -132,7 +200,24 @@ export async function POST(request: Request) {
   });
 
   const { response: fullResponse, payload: fullPayload } =
-    await createNotionPage(notionDatabaseId, notionKey, fullProperties);
+    await createNotionPage({
+      apiUrl: notionApiUrl,
+      databaseId: notionConfig.databaseId,
+      apiKey: notionConfig.notionKey,
+      properties: fullProperties,
+      requestId: requestId || undefined,
+    });
+
+  if (!fullResponse) {
+    return NextResponse.json(
+      {
+        error:
+          fullPayload?.message ??
+          "Notion request failed while creating a lead.",
+      },
+      { status: 502 }
+    );
+  }
 
   if (fullResponse.ok) {
     return NextResponse.json({ ok: true });
@@ -140,7 +225,24 @@ export async function POST(request: Request) {
 
   if (fullPayload?.code === "validation_error") {
     const { response: fallbackResponse, payload: fallbackPayload } =
-      await createNotionPage(notionDatabaseId, notionKey, baseProperties);
+      await createNotionPage({
+        apiUrl: notionApiUrl,
+        databaseId: notionConfig.databaseId,
+        apiKey: notionConfig.notionKey,
+        properties: baseProperties,
+        requestId: requestId || undefined,
+      });
+
+    if (!fallbackResponse) {
+      return NextResponse.json(
+        {
+          error:
+            fallbackPayload?.message ??
+            "Notion request failed while using fallback properties.",
+        },
+        { status: 502 }
+      );
+    }
 
     if (fallbackResponse.ok) {
       return NextResponse.json({ ok: true, fallback: true });
