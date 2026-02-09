@@ -1,7 +1,13 @@
 import { test, expect } from "@playwright/test";
 
 test("landing renders key sections and CTA", async ({ page }) => {
-  await page.goto("/");
+  const resp = await page.goto("/");
+  const headers = resp?.headers() || {};
+  // Basic security headers
+  expect(headers["x-frame-options"]).toBe("DENY");
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+  expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  expect(headers["permissions-policy"]).toContain("camera=()");
 
   await expect(
     page.getByRole("heading", { name: /흩어진 업무를.*10분|10분/ })
