@@ -1,5 +1,7 @@
 ﻿import Link from "next/link";
 
+import LeadCaptureForm from "@/components/LeadCaptureForm";
+
 const valueChips = [
   "Sales → Cash 전 과정 자동화",
   "승인/계약/청구 누락 방지",
@@ -535,7 +537,11 @@ export default function MarketingPage() {
               </Link>
             </div>
           </div>
-        </section>
+        
+          <div className="relative mx-auto flex max-w-6xl justify-start px-6 pb-24">
+            <LeadCaptureForm />
+          </div>
+</section>
       </main>
     </div>
   );
@@ -630,5 +636,4 @@ function FlowNode({ cx, cy, label, highlight }: FlowNodeProps) {
     </g>
   );
 }
-
 

@@ -24,3 +24,31 @@ test("landing renders key sections and CTA", async ({ page }) => {
   await page.getByRole("link", { name: /데모 요청하기/i }).first().click();
   await expect(page).toHaveURL(/#cta/);
 });
+
+
+
+test("lead capture shows error when Notion is not configured", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByLabel("Name").fill("Taylor Kim");
+  await page.getByLabel("Company").fill("Lynco Labs");
+  await page.getByLabel("Email").fill("taylor@lynco.io");
+  await page.getByLabel("Message (optional)").fill("Playwright test lead.");
+
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/lead") &&
+      response.request().method() === "POST"
+  );
+
+  await page.getByRole("button", { name: "데모 요청 보내기" }).click();
+
+  const response = await responsePromise;
+  expect(response.status()).toBe(503);
+
+  const appAlert = page.locator('div[role="alert"]').filter({ hasText: /Notion integration is not configured/i });
+  await expect(appAlert).toBeVisible();
+});
+

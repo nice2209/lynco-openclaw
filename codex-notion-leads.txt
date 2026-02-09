@@ -1,0 +1,41 @@
+You are working in C:\Users\admin\.openclaw\workspace\lynco\web (Next.js App Router + TS + Tailwind). Implement lead capture that saves submissions into a Notion database.
+
+Requirements:
+1) Add a CTA form in the landing page (src/app/(marketing)/page.tsx) under the Final CTA section:
+   - Fields: Name, Company, Email, Message (optional)
+   - Submit button: "데모 요청 보내기"
+   - Client-side UX: loading state, success state, error message.
+
+2) Add an API route: src/app/api/lead/route.ts
+   - Accept POST JSON { name, company, email, message }
+   - Validate required fields (name/company/email). Basic email regex ok.
+   - Server-side: create a page in Notion database.
+   - Use env vars:
+     - NOTION_KEY (Notion integration token)
+     - NOTION_DATABASE_ID
+   - If env vars missing, return 503 with a clear message.
+
+3) Notion DB schema expectations:
+   - Title property: "Name" (title)
+   - Company (rich_text)
+   - Email (email)
+   - Message (rich_text)
+   - Source (select) -> set to "Landing"
+   - Created At (date) -> set to now
+   - Status (select) -> set to "New"
+   If property doesn't exist, fall back gracefully by only setting Name + Email + Message (do not hard-fail).
+
+4) QA / Tests:
+   - Update Playwright test(s) to submit the form in a safe way without calling Notion:
+     - If NOTION_KEY/NOTION_DATABASE_ID are not set in CI, API should return 503 and UI should show an error.
+     - Ensure the form renders and submission shows an error state (in CI).
+
+5) CI:
+   - Ensure npm run lint / build / test:e2e pass.
+
+Progress updates:
+- Print progress milestones in stdout at [0%],[10%]...[100%] with 1-2 bullets.
+
+When completely finished:
+- Summarize files changed.
+- Run: openclaw gateway wake --text "Done: Lynco lead capture form + Notion DB API route wired, CI passing" --mode now
