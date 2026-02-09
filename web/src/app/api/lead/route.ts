@@ -110,8 +110,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const notionKey = process.env.NOTION_KEY;
-  const notionDatabaseId = process.env.NOTION_DATABASE_ID;
+  const notionKey = process.env.NOTION_KEY?.trim();
+  const notionDatabaseId = process.env.NOTION_DATABASE_ID?.trim();
 
   if (!notionKey || !notionDatabaseId) {
     return NextResponse.json(
