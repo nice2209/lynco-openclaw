@@ -40,4 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Playwright
+playwright-report/
+test-results/
+
+# Lighthouse CI output
+.lighthouseci/
+
+# vercel
 .vercel
