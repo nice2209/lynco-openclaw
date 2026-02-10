@@ -22,9 +22,7 @@ export default function LeadCaptureForm() {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleChange = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
@@ -55,7 +53,7 @@ export default function LeadCaptureForm() {
         const message =
           typeof payload?.error === "string"
             ? payload.error
-            : "요청 처리 중 문제가 발생했습니다. 다시 시도해주세요.";
+            : "Request failed. Please try again.";
         setStatus("error");
         setErrorMessage(message);
         return;
@@ -65,114 +63,124 @@ export default function LeadCaptureForm() {
       setStatus("success");
     } catch {
       setStatus("error");
-      setErrorMessage("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      setErrorMessage("Network error. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="w-full max-w-xl rounded-3xl border border-emerald-500/20 bg-[#0f1d18] p-6 shadow-xl shadow-emerald-900/20">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-emerald-200">Lead Capture</p>
-          <h3 className="mt-2 text-xl font-semibold text-white">
-            데모 요청 정보를 남겨주세요.
-          </h3>
-          <p className="mt-2 text-sm text-emerald-100/70">
-            문의 주시면 1영업일 내에 연락드립니다.
-          </p>
-        </div>
-        <span className="hidden rounded-full border border-emerald-400/40 px-3 py-1 text-xs text-emerald-100 md:inline-flex">
-          Landing Form
-        </span>
+    <div className="node-care is-static w-full max-w-xl bg-card p-10 shadow-2xl">
+      <div className="mb-7">
+        <h3 className="text-2xl font-bold tracking-tight text-foreground">Initialize Access</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Tell us about your team and we will map the first workflow with you.
+        </p>
       </div>
 
-      <div className="mt-4 space-y-3" aria-live="polite">
-        {status === "success" ? (
-          <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
-            요청이 접수되었습니다. 데모 일정 확인을 위해 곧 연락드리겠습니다.
+      <div className="mb-5 space-y-3" aria-live="polite">
+        {status === "success" && (
+          <div role="status" className="rounded-2xl bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+            Request received. We will contact you shortly.
           </div>
-        ) : null}
-        {status === "error" ? (
-          <div
-            role="alert"
-            className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
-          >
+        )}
+        {status === "error" && (
+          <div role="alert" className="rounded-2xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
             {errorMessage}
           </div>
-        ) : null}
+        )}
       </div>
 
       <form
-        className="mt-6 grid gap-4"
-        aria-label="Lead capture form"
+        className="grid gap-5"
         onSubmit={handleSubmit}
+        aria-label="Lead capture form"
+        data-testid="lead-capture-form"
       >
-        <label className="grid gap-2 text-sm text-emerald-100/80">
-          Name
+        <div className="space-y-2">
+          <label
+            htmlFor="name"
+            className="ml-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+          >
+            Name
+          </label>
           <input
+            id="name"
             name="name"
             value={form.name}
             onChange={handleChange}
-            disabled={isSubmitting}
             required
             autoComplete="name"
-            className="rounded-2xl border border-emerald-500/20 bg-[#0b1512] px-4 py-3 text-sm text-white placeholder:text-emerald-100/40 focus:border-emerald-400 focus:outline-none"
-            placeholder="홍길동"
+            disabled={isSubmitting}
+            placeholder="Jane Smith"
+            className="w-full rounded-2xl border border-transparent bg-secondary px-6 py-4 text-sm font-medium outline-none transition-all focus:border-primary focus:bg-card disabled:cursor-not-allowed disabled:opacity-70"
           />
-        </label>
-        <label className="grid gap-2 text-sm text-emerald-100/80">
-          Company
+        </div>
+        <div className="space-y-2">
+          <label
+            htmlFor="company"
+            className="ml-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+          >
+            Company
+          </label>
           <input
+            id="company"
             name="company"
             value={form.company}
             onChange={handleChange}
-            disabled={isSubmitting}
             required
             autoComplete="organization"
-            className="rounded-2xl border border-emerald-500/20 bg-[#0b1512] px-4 py-3 text-sm text-white placeholder:text-emerald-100/40 focus:border-emerald-400 focus:outline-none"
-            placeholder="회사명을 입력해주세요"
+            disabled={isSubmitting}
+            placeholder="Acme Inc."
+            className="w-full rounded-2xl border border-transparent bg-secondary px-6 py-4 text-sm font-medium outline-none transition-all focus:border-primary focus:bg-card disabled:cursor-not-allowed disabled:opacity-70"
           />
-        </label>
-        <label className="grid gap-2 text-sm text-emerald-100/80">
-          Email
+        </div>
+        <div className="space-y-2">
+          <label
+            htmlFor="email"
+            className="ml-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+          >
+            Corporate Email
+          </label>
           <input
+            id="email"
             name="email"
             type="email"
             value={form.email}
             onChange={handleChange}
-            disabled={isSubmitting}
             required
             autoComplete="email"
-            className="rounded-2xl border border-emerald-500/20 bg-[#0b1512] px-4 py-3 text-sm text-white placeholder:text-emerald-100/40 focus:border-emerald-400 focus:outline-none"
+            disabled={isSubmitting}
             placeholder="name@company.com"
+            className="w-full rounded-2xl border border-transparent bg-secondary px-6 py-4 text-sm font-medium outline-none transition-all focus:border-primary focus:bg-card disabled:cursor-not-allowed disabled:opacity-70"
           />
-        </label>
-        <label className="grid gap-2 text-sm text-emerald-100/80">
-          Message (optional)
+        </div>
+        <div className="space-y-2">
+          <label
+            htmlFor="message"
+            className="ml-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+          >
+            Message (optional)
+          </label>
           <textarea
+            id="message"
             name="message"
             value={form.message}
             onChange={handleChange}
+            rows={3}
             disabled={isSubmitting}
-            rows={4}
-            className="rounded-2xl border border-emerald-500/20 bg-[#0b1512] px-4 py-3 text-sm text-white placeholder:text-emerald-100/40 focus:border-emerald-400 focus:outline-none"
-            placeholder="현재 운영 중인 프로세스에서 가장 답답한 지점을 알려주세요."
+            placeholder="Tell us about your workflow goals..."
+            className="w-full resize-y rounded-2xl border border-transparent bg-secondary px-6 py-4 text-sm font-medium outline-none transition-all focus:border-primary focus:bg-card disabled:cursor-not-allowed disabled:opacity-70"
           />
-        </label>
-        <div className="flex flex-col gap-2">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-full bg-emerald-400 px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            데모 요청 보내기
-          </button>
-          {isSubmitting ? (
-            <span className="text-xs text-emerald-100/70">전송 중...</span>
-          ) : null}
         </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="mt-1 w-full rounded-2xl bg-primary px-5 py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? "Sending..." : "Submit Request"}
+        </button>
       </form>
     </div>
   );

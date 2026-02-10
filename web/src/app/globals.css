@@ -1,16 +1,77 @@
 @import "tailwindcss";
 
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #0b1512;
-  --foreground: #e6f4ef;
+  --bg: #f9fafb;
+  --fg: #111827;
+  --dot: #e5e7eb;
+  --bg-text: rgba(0, 0, 0, 0.02);
+  --node-bg: rgba(255, 255, 255, 0.9);
+  --border-soft: rgba(229, 231, 235, 0.5);
+
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --card: #ffffff;
+  --card-foreground: var(--fg);
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: var(--fg);
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #eef2ff;
+  --accent-foreground: var(--fg);
+  --border: #e5e7eb;
+  --input: #d1d5db;
+  --ring: #2563eb;
+  --radius: 1.25rem;
+}
+
+.dark {
+  --bg: #050505;
+  --fg: #f9fafb;
+  --dot: #1f1f1f;
+  --bg-text: rgba(255, 255, 255, 0.03);
+  --node-bg: rgba(15, 15, 15, 0.84);
+  --border-soft: rgba(255, 255, 255, 0.08);
+
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --card: #0a0a0b;
+  --card-foreground: var(--fg);
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #111114;
+  --secondary-foreground: var(--fg);
+  --muted: #121216;
+  --muted-foreground: #a3a3a3;
+  --accent: #16161d;
+  --accent-foreground: var(--fg);
+  --border: #212126;
+  --input: #2a2a31;
+  --ring: #3b82f6;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Manrope", "Inter", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono",
-    monospace;
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-plus-jakarta), "Segoe UI", sans-serif;
 }
 
 html {
@@ -18,16 +79,97 @@ html {
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  transition: background-color 0.5s ease, color 0.5s ease;
+  -webkit-font-smoothing: antialiased;
 }
 
-@keyframes flow {
-  from {
-    stroke-dashoffset: 200;
+.canvas-dots {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-text-fixed {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  transform: translate(-50%, -50%);
+  color: var(--bg-text);
+  font-size: 20vw;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: color 0.5s ease;
+}
+
+.node-care {
+  border: 1px solid var(--border-soft);
+  border-radius: 28px;
+  background: var(--node-bg);
+  padding: 32px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.03);
+  transform-style: preserve-3d;
+  transition:
+    border-color 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.45s ease,
+    transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.node-care:hover {
+  border-color: var(--primary);
+  transform: translateY(-8px);
+  box-shadow: 0 28px 58px rgba(0, 0, 0, 0.08);
+}
+
+.node-care.is-static:hover {
+  transform: translateY(-4px);
+}
+
+.connection-path {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 6;
+  opacity: 0.18;
+}
+
+.pulse-particle {
+  fill: var(--primary);
+  filter: blur(1px);
+}
+
+.reveal-up {
+  opacity: 0;
+  transform: translateY(40px);
+}
+
+@media (max-width: 1024px) {
+  .reveal-up {
+    opacity: 1;
+    transform: none;
   }
-  to {
-    stroke-dashoffset: 0;
-  }
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--primary);
 }

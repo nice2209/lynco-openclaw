@@ -1,91 +1,73 @@
 import { test, expect } from "@playwright/test";
 
-test("landing renders key sections and CTA", async ({ page }) => {
-  const resp = await page.goto("/");
-  const headers = resp?.headers() || {};
-  // Basic security headers
+test("landing renders key sections and security headers", async ({ page }) => {
+  const response = await page.goto("/");
+  const headers = response?.headers() ?? {};
+
   expect(headers["x-frame-options"]).toBe("DENY");
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
   expect(headers["permissions-policy"]).toContain("camera=()");
 
-  await expect(page.getByRole("heading", { name: /흩어진 업무를.*10분|10분/ })).toBeVisible();
+  await expect(page.getByTestId("marketing-page")).toBeVisible();
+  await expect(page.getByTestId("hero-heading")).toContainText("Logic and");
+  await expect(page.locator("#canvas-stage")).toBeVisible();
+  await expect(page.getByTestId("insights-chart")).toBeVisible();
+  await expect(page.getByTestId("lead-capture-form")).toBeVisible();
 
-  // Section headings (mixed KR/EN)
-  await expect(
-    page.getByRole("heading", { name: /흐름만 연결하면/i })
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /속도는 기능이 아니라/i })
-  ).toBeVisible();
-  await expect(page.getByRole("heading", { name: /리드 → 매출까지/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /^Lynco Lab:/i })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /보안과 분리는 기본값/i })
-  ).toBeVisible();
-  await expect(page.getByRole("heading", { name: /가장 자주 묻는 질문/i })).toBeVisible();
-
-  await page.getByRole("link", { name: /데모 요청하기/i }).first().click();
-  await expect(page).toHaveURL(/#cta/);
+  await page.getByRole("link", { name: "Insights" }).click();
+  await expect(page).toHaveURL(/#insights$/);
 });
 
-test("lead capture shows error when Notion is not configured", async ({ page }) => {
+test("lead form trims payload and shows success on successful API response", async ({
+  page,
+}) => {
+  await page.route("**/api/lead", async (route) => {
+    const body = route.request().postDataJSON();
+
+    expect(body).toMatchObject({
+      name: "Taylor Kim",
+      company: "Lynco Labs",
+      email: "taylor@lynco.io",
+      message: "Need a revenue workflow audit",
+    });
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, id: "lead_test_01" }),
+    });
+  });
+
   await page.goto("/");
+  await page.getByLabel("Name").fill("  Taylor Kim  ");
+  await page.getByLabel("Company").fill("  Lynco Labs  ");
+  await page.getByLabel("Corporate Email").fill("  taylor@lynco.io  ");
+  await page.getByLabel("Message (optional)").fill("  Need a revenue workflow audit  ");
+  await page.getByRole("button", { name: "Submit Request" }).click();
 
-  await page.getByLabel("Name").fill("Taylor Kim");
-  await page.getByLabel("Company").fill("Lynco Labs");
-  await page.getByLabel("Email").fill("taylor@lynco.io");
-  await page.getByLabel("Message (optional)").fill("Playwright test lead.");
-
-  const responsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/lead") &&
-      response.request().method() === "POST"
-  );
-
-  await page.getByRole("button", { name: "데모 요청 보내기" }).click();
-
-  const response = await responsePromise;
-  expect(response.status()).toBe(503);
-
-  const appAlert = page
-    .locator('div[role="alert"]')
-    .filter({ hasText: /Notion integration is not configured/i });
-  await expect(appAlert).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Request received");
 });
 
-test("lead capture form handles Korean text correctly", async ({ page }) => {
+test("lead form shows API errors returned by backend", async ({ page }) => {
+  await page.route("**/api/lead", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Database is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      }),
+    });
+  });
+
   await page.goto("/");
+  await page.getByLabel("Name").fill("Alex Rivera");
+  await page.getByLabel("Company").fill("Kolibri Systems");
+  await page.getByLabel("Corporate Email").fill("alex@kolibri.dev");
+  await page.getByRole("button", { name: "Submit Request" }).click();
 
-  // Fill form with Korean text
-  await page.getByLabel("Name").fill("홍길동");
-  await page.getByLabel("Company").fill("린코 랩스");
-  await page.getByLabel("Email").fill("hong@lynco.io");
-  await page
-    .getByLabel("Message (optional)")
-    .fill("안녕하세요. 데모를 요청합니다.");
-
-  const requestPromise = page.waitForRequest(
-    (request) => request.url().includes("/api/lead") && request.method() === "POST"
-  );
-
-  const responsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/lead") &&
-      response.request().method() === "POST"
-  );
-
-  await page.getByRole("button", { name: "데모 요청 보내기" }).click();
-
-  // Verify the request contains properly encoded Korean text
-  const request = await requestPromise;
-  const requestBody = request.postDataJSON();
-  expect(requestBody.name).toBe("홍길동");
-  expect(requestBody.company).toBe("린코 랩스");
-  expect(requestBody.message).toBe("안녕하세요. 데모를 요청합니다.");
-
-  const response = await responsePromise;
-
-  // Should return 503 if Notion is not configured, or 200 if it is
-  expect([200, 503]).toContain(response.status());
+  const alert = page
+    .getByRole("alert")
+    .filter({ hasText: /Database is not configured/i });
+  await expect(alert).toContainText("Database is not configured");
 });

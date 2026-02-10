@@ -2,15 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Lynco | Lead-to-Cash Flow Automation",
+  title: "Lynco | Automated Revenue Operations",
   description:
     "Connect quotes, approvals, contracts, invoices, payments, and reconciliation in one automated flow.",
-  openGraph: {
-    title: "Lynco | Lead-to-Cash Flow Automation",
-    description:
-      "Connect quotes, approvals, contracts, invoices, payments, and reconciliation in one automated flow.",
-    type: "website",
-  },
 };
 
 export default function RootLayout({
@@ -20,7 +14,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <div className="relative flex min-h-screen flex-col">
+          <main className="flex-1">{children}</main>
+        </div>
+      </body>
     </html>
   );
 }
