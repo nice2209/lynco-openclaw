@@ -17,21 +17,33 @@ export async function GET(
     const { token } = await params;
     const supabase = getSupabaseAdmin();
 
-    const { data: quote, error } = await supabase
+    const { data: quote, error: quoteError } = await supabase
       .from("quotes")
       .select(
         "id, customer_company, customer_name, customer_email, currency, subtotal_cents, discount_cents, tax_cents, total_cents, status, valid_until"
       )
       .eq("customer_view_token", token)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+    if (quoteError) {
+      return NextResponse.json({ error: quoteError.message }, { status: 500 });
+    }
+    if (!quote) {
+      return NextResponse.json({ error: "Invalid customer link" }, { status: 404 });
+    }
 
-    const { data: items } = await supabase
+    const { data: items, error: itemsError } = await supabase
       .from("quote_line_items")
-      .select("description, quantity, unit_price_cents, discount_percent, line_total_cents, sort_order")
+      .select(
+        "description, quantity, unit_price_cents, discount_percent, line_total_cents, sort_order"
+      )
       .eq("quote_id", quote.id)
       .order("sort_order", { ascending: true });
+
+    if (itemsError) {
+      return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    }
 
     return NextResponse.json({ quote, items: items ?? [] });
   } catch (err: unknown) {
@@ -49,13 +61,19 @@ export async function POST(
     const body = AcceptSchema.parse(await req.json());
     const supabase = getSupabaseAdmin();
 
-    const { data: quote, error: qErr } = await supabase
+    const { data: quote, error: quoteError } = await supabase
       .from("quotes")
       .select("id, status")
       .eq("customer_view_token", token)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
-    if (qErr) return NextResponse.json({ error: qErr.message }, { status: 404 });
+    if (quoteError) {
+      return NextResponse.json({ error: quoteError.message }, { status: 500 });
+    }
+    if (!quote) {
+      return NextResponse.json({ error: "Invalid customer link" }, { status: 404 });
+    }
 
     if (quote.status === "customer_approved") {
       return NextResponse.json({ ok: true, status: quote.status });
@@ -64,25 +82,37 @@ export async function POST(
     const ip = req.headers.get("x-forwarded-for") || null;
     const ua = req.headers.get("user-agent") || null;
 
-    await supabase.from("customer_acceptances").insert({
-      quote_id: quote.id,
-      signer_name: body.signerName,
-      signer_company: body.signerCompany ?? null,
-      po_number: body.poNumber ?? null,
-      comment: body.comment ?? null,
-      ip,
-      user_agent: ua,
-    });
+    const { error: acceptanceError } = await supabase
+      .from("customer_acceptances")
+      .insert({
+        quote_id: quote.id,
+        signer_name: body.signerName,
+        signer_company: body.signerCompany ?? null,
+        po_number: body.poNumber ?? null,
+        comment: body.comment ?? null,
+        ip,
+        user_agent: ua,
+      });
 
-    await supabase
+    if (acceptanceError) {
+      return NextResponse.json({ error: acceptanceError.message }, { status: 500 });
+    }
+
+    const nextStatus = "customer_approved";
+
+    const { error: updateError } = await supabase
       .from("quotes")
       .update({
-        status: "customer_approved",
+        status: nextStatus,
         customer_approved_at: new Date().toISOString(),
       })
       .eq("id", quote.id);
 
-    await supabase.from("quote_events").insert({
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    const { error: eventError } = await supabase.from("quote_events").insert({
       quote_id: quote.id,
       type: "customer_accepted",
       actor_type: "customer",
@@ -90,7 +120,11 @@ export async function POST(
       metadata: { poNumber: body.poNumber ?? null },
     });
 
-    return NextResponse.json({ ok: true, status: "customer_approved" });
+    if (eventError) {
+      return NextResponse.json({ error: eventError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, status: nextStatus });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Invalid request";
     return NextResponse.json({ error: message }, { status: 400 });
