@@ -17,21 +17,33 @@ export async function GET(
     const { token } = await params;
     const supabase = getSupabaseAdmin();
 
-    const { data: quote, error } = await supabase
+    const { data: quote, error: quoteError } = await supabase
       .from("quotes")
       .select(
         "id, customer_company, customer_name, customer_email, currency, subtotal_cents, discount_cents, tax_cents, total_cents, status, valid_until"
       )
       .eq("approval_token", token)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+    if (quoteError) {
+      return NextResponse.json({ error: quoteError.message }, { status: 500 });
+    }
+    if (!quote) {
+      return NextResponse.json({ error: "Invalid approval token" }, { status: 404 });
+    }
 
-    const { data: items } = await supabase
+    const { data: items, error: itemsError } = await supabase
       .from("quote_line_items")
-      .select("description, quantity, unit_price_cents, discount_percent, line_total_cents, sort_order")
+      .select(
+        "description, quantity, unit_price_cents, discount_percent, line_total_cents, sort_order"
+      )
       .eq("quote_id", quote.id)
       .order("sort_order", { ascending: true });
+
+    if (itemsError) {
+      return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    }
 
     return NextResponse.json({ quote, items: items ?? [] });
   } catch (err: unknown) {
@@ -49,19 +61,25 @@ export async function POST(
     const body = DecideSchema.parse(await req.json());
     const supabase = getSupabaseAdmin();
 
-    const { data: quote, error: qErr } = await supabase
+    const { data: quote, error: quoteError } = await supabase
       .from("quotes")
       .select("id, status")
       .eq("approval_token", token)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
-    if (qErr) return NextResponse.json({ error: qErr.message }, { status: 404 });
+    if (quoteError) {
+      return NextResponse.json({ error: quoteError.message }, { status: 500 });
+    }
+    if (!quote) {
+      return NextResponse.json({ error: "Invalid approval token" }, { status: 404 });
+    }
 
     if (quote.status === "approved" || quote.status === "rejected") {
       return NextResponse.json({ ok: true, status: quote.status });
     }
 
-    await supabase.from("quote_approvals").insert({
+    const { error: approvalError } = await supabase.from("quote_approvals").insert({
       quote_id: quote.id,
       decision: body.decision,
       comment: body.comment ?? null,
@@ -69,9 +87,13 @@ export async function POST(
       actor_email: body.email ?? null,
     });
 
-    const nextStatus = body.decision === "approved" ? "approved" : "rejected";
+    if (approvalError) {
+      return NextResponse.json({ error: approvalError.message }, { status: 500 });
+    }
 
-    await supabase
+    const nextStatus = body.decision;
+
+    const { error: updateError } = await supabase
       .from("quotes")
       .update({
         status: nextStatus,
@@ -79,14 +101,22 @@ export async function POST(
       })
       .eq("id", quote.id);
 
-    await supabase.from("quote_events").insert({
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    const { error: eventError } = await supabase.from("quote_events").insert({
       quote_id: quote.id,
-      type: body.decision === "approved" ? "approved" : "rejected",
+      type: nextStatus,
       actor_type: "user",
       actor_name: body.name,
       actor_email: body.email ?? null,
       metadata: { comment: body.comment ?? null },
     });
+
+    if (eventError) {
+      return NextResponse.json({ error: eventError.message }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true, status: nextStatus });
   } catch (err: unknown) {
